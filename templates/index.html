@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CKD Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="logo">&#129728;</div>
+      <h1>Chronic Kidney Disease Predictor</h1>
+      <p>Enter the patient's lab values and symptoms. A logistic regression model trained on clinical data will estimate whether CKD is present.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if result %}
+    <section class="result {{ 'bad' if result.present else 'good' }}" id="result">
+      <div class="result-icon">{{ '⚠️' if result.present else '✅' }}</div>
+      <div>
+        <h2>{{ result.label }}</h2>
+        <p>Model probability of CKD: <strong>{{ result.probability }}%</strong></p>
+        <div class="bar"><span style="width: {{ result.probability }}%"></span></div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if error %}
+    <section class="error">{{ error }}</section>
+    {% endif %}
+
+    <div class="examples">
+      <span>Try an example:</span>
+      <button type="button" class="chip" onclick="fillExample('normal')">Healthy sample</button>
+      <button type="button" class="chip" onclick="fillExample('ckd')">CKD sample</button>
+    </div>
+
+    <form action="{{ url_for('predict') }}" method="POST" class="card">
+      <h3 class="section-title">Measurements</h3>
+      <div class="grid">
+        {% for key, (label, unit, lo, hi) in numeric.items() %}
+        <label class="field">
+          <span>{{ label }} <small>({{ unit }})</small></span>
+          <input type="number" step="any" name="{{ key }}" min="{{ lo }}" max="{{ hi }}"
+                 value="{{ values.get(key, '') }}" required placeholder="e.g. {{ lo }}–{{ hi }}">
+        </label>
+        {% endfor %}
+
+        {% for key, (label, opts) in choices.items() %}
+        <label class="field">
+          <span>{{ label }}</span>
+          <select name="{{ key }}" required>
+            <option value="" disabled {{ 'selected' if key not in values }}>Select</option>
+            {% for o in opts %}
+            <option value="{{ o }}" {{ 'selected' if values.get(key) == o }}>{{ o }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% endfor %}
+      </div>
+
+      <h3 class="section-title">Conditions &amp; Findings</h3>
+      <div class="grid">
+        {% for key, (label, no, yes) in binary.items() %}
+        <label class="field">
+          <span>{{ label }}</span>
+          <select name="{{ key }}" required>
+            <option value="" disabled {{ 'selected' if key not in values }}>Select</option>
+            <option value="0" {{ 'selected' if values.get(key) == '0' }}>{{ no }}</option>
+            <option value="1" {{ 'selected' if values.get(key) == '1' }}>{{ yes }}</option>
+          </select>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn">Predict</button>
+        <a href="{{ url_for('home') }}" class="btn ghost">Reset</a>
+      </div>
+    </form>
+
+    <p class="disclaimer">This tool is for educational purposes only and is not a medical diagnosis. Please consult a qualified doctor.</p>
+  </main>
+
+  <script>
+    const EXAMPLES = {
+      normal: {age:40,bp:80,al:"0",su:"0",rbc:"0",pc:"0",pcc:"0",ba:"0",bgr:100,bu:25,sc:1.0,sod:140,pot:4.5,hemo:15,pcv:45,wc:8000,rc:5.2,htn:"0",dm:"0",cad:"0",appet:"0",pe:"0",ane:"0"},
+      ckd:    {age:62,bp:80,al:"2",su:"3",rbc:"0",pc:"0",pcc:"0",ba:"0",bgr:423,bu:53,sc:1.8,sod:138,pot:4.4,hemo:9.6,pcv:31,wc:7500,rc:4.8,htn:"0",dm:"1",cad:"0",appet:"1",pe:"0",ane:"1"}
+    };
+    function fillExample(kind) {
+      const ex = EXAMPLES[kind];
+      for (const [name, val] of Object.entries(ex)) {
+        const el = document.querySelector('[name="' + name + '"]');
+        if (el) el.value = val;
+      }
+    }
+  </script>
+
+  {% if result %}
+  <script>document.getElementById('result').scrollIntoView({behavior: 'smooth', block: 'center'});</script>
+  {% endif %}
+</body>
+</html>
